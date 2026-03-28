@@ -8,7 +8,7 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 
 **Status:** Test version — core generation flow works, advanced features planned.
 
-**Language:** Russian (all UI text, prompts, and user-facing content are in Russian)
+**Language:** Russian (all UI text, prompts, and user-facing content are in Russian). All console output and code comments must be in English.
 
 ## Tech Stack
 
@@ -28,7 +28,8 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 |---|---|---|
 | `BOT_TOKEN` | yes | Telegram Bot API token |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key |
-| `ALLOWED_USER_IDS` | yes | Comma-separated Telegram user IDs for whitelist |
+| `ALLOWED_USER_IDS` | no | Comma-separated Telegram user IDs for whitelist |
+| `ALLOWED_USERNAMES` | no | Comma-separated Telegram usernames for whitelist |
 
 ## Project Structure
 
@@ -44,7 +45,7 @@ src/
 ├── keyboards/
 │   └── index.ts            # Inline keyboard builders
 ├── middleware/
-│   └── whitelist.ts        # Access control by Telegram user ID
+│   └── whitelist.ts        # Access control by Telegram user ID or username
 ├── providers/
 │   ├── types.ts            # CardProvider interface, format types
 │   ├── registry.ts         # Provider registry (register, switch, get)
@@ -56,7 +57,9 @@ src/
 ## Key Business Logic (current implementation)
 
 - **Core flow:** User sends photo + text caption → selects format (1:1, 3:4, 4:3, 9:16) → AI generates product card
-- **Whitelist:** Access restricted to Telegram IDs listed in `ALLOWED_USER_IDS`
+- **Whitelist:** Access restricted by Telegram user ID (`ALLOWED_USER_IDS`) or username (`ALLOWED_USERNAMES`). Currently disabled in bot.ts (middleware commented out).
+- **Pending requests:** Stored in memory Map with 30-min TTL and 10-min cleanup interval
+- **Photo size selection:** Uses second-to-last Telegram photo size (balance of quality vs speed)
 - **Balance:** Stub only (shows placeholder, no real billing)
 - **Text in quotes** ("like this") means the bot should use that text verbatim on the card
 
@@ -71,7 +74,9 @@ src/
 
 - **OpenRouter** — single active provider, model `google/gemini-3.1-flash-image-preview`
 - Uses OpenAI SDK with `baseURL: "https://openrouter.ai/api/v1"`
-- Native aspect ratio support (1:1, 3:4, 4:3, 9:16) — no crop/resize needed
+- Native aspect ratio support via `image_config.aspect_ratio` — no crop/resize needed
+- Image size: `1K` (1024px)
+- API dimensions defined in `providers/types.ts`: 1024x1024, 1024x1536, 1536x1024
 - **Provider architecture:** `CardProvider` interface → provider registry → `/provider` command to switch at runtime
 
 ## UI Architecture (current implementation)
