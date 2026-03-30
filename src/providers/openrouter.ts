@@ -31,8 +31,12 @@ export class OpenRouterProvider implements CardProvider {
     const dataUrl = `data:image/png;base64,${base64Image}`;
 
     const prompt =
-      `Follow the user's request exactly. Include ALL text the user asked for — do not skip any. Do not add extra text, labels, or watermarks that the user did not ask for. ` +
-      `User request: ${request.userPrompt}`;
+      `You are a product card designer. The user sends a photo and an instruction. ` +
+      `Follow the instruction to transform the photo into a product card for a marketplace. ` +
+      `Do NOT render the instruction text on the image. ` +
+      `Only add text to the image if the user explicitly asks for it. ` +
+      `Do not add any extra labels, watermarks, or text that the user did not ask for.\n\n` +
+      `Instruction: ${request.userPrompt}`;
 
     const response = await this.client.chat.completions.create({
       model: "google/gemini-3.1-flash-image-preview",
