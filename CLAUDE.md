@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Telegram bot for generating product cards (infographics) for marketplaces. Users send an image + text in a single message, the bot generates a styled product card using an AI image generation service.
 
-**Status:** Test version — core generation flow works, advanced features planned.
+**Status:** Stage 2 — database, real balance, admin panel, YooKassa payments, webhook server.
 
 **Language:** Russian (all UI text, prompts, and user-facing content are in Russian). All console output and code comments must be in English.
 
@@ -15,6 +15,7 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 - **Node.js + TypeScript** (ES2022, ESNext modules, `"type": "module"`)
 - **grammY** — Telegram Bot framework
 - **OpenAI SDK** — used as HTTP client for OpenRouter API (OpenAI-compatible)
+- **better-sqlite3** — SQLite database (synchronous, no ORM)
 - **dotenv** — configuration via `.env`
 
 ## Development Commands
@@ -30,22 +31,44 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key |
 | `ALLOWED_USER_IDS` | no | Comma-separated Telegram user IDs for whitelist |
 | `ALLOWED_USERNAMES` | no | Comma-separated Telegram usernames for whitelist |
+| `ADMIN_IDS` | no | Comma-separated Telegram user IDs for admin panel access |
+| `YOOKASSA_SHOP_ID` | no | YooKassa shop ID (for payments) |
+| `YOOKASSA_SECRET_KEY` | no | YooKassa secret key |
+| `YOOKASSA_RETURN_URL` | no | URL to return after payment (e.g. `https://t.me/botname`) |
+| `WEBHOOK_PORT` | no | Port for webhook server (default: 3000) |
+| `WEBHOOK_BASE_URL` | no | Public URL for webhooks (e.g. `https://your-server.com`) |
 
 ## Project Structure
 
 ```
 src/
-├── bot.ts                  # Entry point — bot setup and launch
+├── bot.ts                  # Entry point — bot setup, middleware, handlers, webhook
 ├── config.ts               # Env parsing and validation
+├── context.ts              # BotContext type (extends grammY Context with dbUser)
+├── webhook.ts              # HTTP server for YooKassa payment webhooks
+├── db/
+│   ├── index.ts            # Database initialization, schema, WAL mode
+│   ├── users.ts            # User CRUD, balance operations, listing
+│   ├── generations.ts      # Generation records, stats, recent list
+│   ├── payments.ts         # Payment records, stats
+│   └── settings.ts         # Key-value settings (price, welcome balance, etc.)
 ├── handlers/
 │   ├── start.ts            # /start command, welcome message
-│   ├── menu.ts             # Main menu, help, balance screens
-│   ├── generate.ts         # Photo+text → format selection → AI generation
-│   └── provider.ts         # /provider command — switch AI provider
+│   ├── menu.ts             # Main menu, help, balance screens (real balance)
+│   ├── generate.ts         # Photo+text → balance check → AI generation → DB record
+│   ├── provider.ts         # /provider command — switch AI provider
+│   ├── admin.ts            # /admin command — admin panel (users, stats, settings)
+│   └── payment.ts          # Payment flow — amount selection, YooKassa link
 ├── keyboards/
-│   └── index.ts            # Inline keyboard builders
+│   └── index.ts            # Inline keyboard builders (menu, payment, admin)
 ├── middleware/
+│   ├── auth.ts             # Register/update user in DB on every request
+│   ├── block.ts            # Block check — blocked users get rejected
+│   ├── consent.ts          # Optional PD consent gate (configurable via settings)
+│   ├── rateLimit.ts        # Rate limiting (5 generations/min per user)
 │   └── whitelist.ts        # Access control by Telegram user ID or username
+├── payments/
+│   └── yookassa.ts         # YooKassa REST API client
 ├── providers/
 │   ├── types.ts            # CardProvider interface, format types
 │   ├── registry.ts         # Provider registry (register, switch, get)
@@ -54,14 +77,34 @@ src/
     └── index.ts            # All user-facing text constants
 ```
 
-## Key Business Logic (current implementation)
+## Database
 
-- **Core flow:** User sends photo + text caption → selects format (1:1, 3:4, 4:3, 9:16) → AI generates product card
-- **Whitelist:** Access restricted by Telegram user ID (`ALLOWED_USER_IDS`) or username (`ALLOWED_USERNAMES`). Currently disabled in bot.ts (middleware commented out).
-- **Pending requests:** Stored in memory Map with 30-min TTL and 10-min cleanup interval
-- **Photo size selection:** Uses second-to-last Telegram photo size (balance of quality vs speed)
-- **Balance:** Stub only (shows placeholder, no real billing)
-- **Text in quotes** ("like this") means the bot should use that text verbatim on the card
+- **SQLite** via `better-sqlite3` — file at `./data/bot.db`
+- **Tables:** `users`, `generations`, `payments`, `settings`
+- Money stored in **kopecks** (1 RUB = 100 kopecks) as integers
+- No race conditions: synchronous API + single-threaded Node.js
+- WAL mode enabled for better read concurrency
+
+## Key Business Logic
+
+- **Core flow:** User sends photo + text → selects format → balance check → AI generates card → balance deducted → result saved in DB
+- **Balance:** Real balance in kopecks, checked before generation, refunded on AI failure
+- **Rate limiting:** 5 generations per minute per user (in-memory)
+- **Admin panel:** `/admin` command for users in `ADMIN_IDS` — manage users, balance, stats, settings, broadcast
+- **Payments:** YooKassa integration via webhook server on separate HTTP port
+- **Pending requests:** In-memory Map with 30-min TTL and 10-min cleanup
+- **Graceful shutdown:** Closes DB and stops bot on SIGINT/SIGTERM
+
+## Middleware Order (in bot.ts)
+
+1. `auth` — register/update user in DB, set `ctx.dbUser`
+2. `consent` — optional PD consent check (configurable)
+3. `block` — reject blocked users
+
+## Admin Panel
+
+Entry: `/admin` command. Access: `ADMIN_IDS` env variable.
+Features: user list with pagination, user detail (balance +/-, block), statistics, recent generations, recent payments, settings (generation price, welcome balance), broadcast to all users.
 
 ## Supported Image Formats
 
@@ -75,28 +118,14 @@ src/
 - **OpenRouter** — single active provider, model `google/gemini-3.1-flash-image-preview`
 - Uses OpenAI SDK with `baseURL: "https://openrouter.ai/api/v1"`
 - Native aspect ratio support via `image_config.aspect_ratio` — no crop/resize needed
-- Image size: `1K` (1024px)
-- API dimensions defined in `providers/types.ts`: 1024x1024, 1024x1536, 1536x1024
 - **Provider architecture:** `CardProvider` interface → provider registry → `/provider` command to switch at runtime
 
-## UI Architecture (current implementation)
+## Backlog (deferred features)
 
-- All navigation uses Telegram Inline Keyboard buttons
-- Screen transitions via callback buttons that **edit the current message** (not send new ones)
-- `/start` → main menu (3 buttons: "Как генерировать", "Баланс", "Информация")
-- Help section — 7 topic screens (recommendations, image format, text, editing, multiple cards, reference, merge objects)
-- Info section — 3 screens (capabilities, terms, support)
-- Balance — stub screen + tariffs
-- Format selection — 4 buttons (1:1, 3:4, 4:3, 9:16)
-- Every screen has a "Back" button
-
-## Planned Features
-
-- **Multi-card generation:** Up to 10 cards/variants per request (auto or manual mode)
-- **Reference-based generation:** Multiple images as a group — user specifies product vs style reference
-- **Object merging:** Multiple images combined into one card
-- **Image editing:** Re-send a generated card with edit instructions
-- **Payment system:** User balance in RUB, 50 RUB per generation, YooKassa integration
+- Multi-card generation (up to 10 cards/variants per request)
+- Reference-based generation (style transfer from example images)
+- Object merging (combine multiple images into one card)
+- Image editing (re-send generated card with edit instructions)
 
 ## Documentation
 
