@@ -7,6 +7,32 @@ import {
   CardFormat,
 } from "./types.js";
 
+interface OpenRouterImageConfig {
+  aspect_ratio: string;
+  image_size: string;
+}
+
+interface OpenRouterCreateParams {
+  model: string;
+  messages: Array<{
+    role: string;
+    content: Array<{ type: string; text?: string; image_url?: { url: string } }>;
+  }>;
+  modalities: string[];
+  image_config: OpenRouterImageConfig;
+}
+
+interface OpenRouterImage {
+  image_url?: { url: string };
+  url?: string;
+}
+
+interface OpenRouterChoice {
+  message: {
+    images?: OpenRouterImage[];
+  };
+}
+
 const ASPECT_RATIOS: Record<CardFormat, string> = {
   "1x1": "1:1",
   "3x4": "3:4",
@@ -22,13 +48,14 @@ export class OpenRouterProvider implements CardProvider {
     this.client = new OpenAI({
       apiKey: config.openrouterApiKey,
       baseURL: "https://openrouter.ai/api/v1",
+      timeout: 120_000,
     });
   }
 
   async generate(request: GenerationRequest): Promise<GenerationResult> {
     const aspectRatio = ASPECT_RATIOS[request.format];
     const base64Image = Buffer.from(request.imageBuffer).toString("base64");
-    const dataUrl = `data:image/png;base64,${base64Image}`;
+    const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
     const prompt =
       `You are a product card designer. The user sends a photo and an instruction. ` +
@@ -57,19 +84,20 @@ export class OpenRouterProvider implements CardProvider {
         aspect_ratio: aspectRatio,
         image_size: "1K",
       },
-    } as any);
+    } as OpenRouterCreateParams as Parameters<typeof this.client.chat.completions.create>[0]) as OpenAI.Chat.Completions.ChatCompletion;
 
-    const choice = response.choices?.[0]?.message;
+    const choice = (response.choices?.[0] as unknown as OpenRouterChoice | undefined)?.message;
     if (!choice) {
       throw new Error("OpenRouter API returned no response");
     }
 
     // Extract image from response
-    const images = (choice as any).images;
+    const images = choice.images;
     if (images && images.length > 0) {
-      const imageUrl: string = images[0].image_url?.url || images[0].url;
+      const imageUrl: string | undefined = images[0].image_url?.url || images[0].url;
       if (imageUrl?.startsWith("data:image/")) {
         const base64Data = imageUrl.split(",")[1];
+        if (!base64Data) throw new Error("Invalid data URL format from OpenRouter");
         return { imageBuffer: Buffer.from(base64Data, "base64") };
       }
     }

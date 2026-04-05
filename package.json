@@ -12,11 +12,13 @@
   "author": "Arthur Mironov",
   "license": "MIT",
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.1",
     "grammy": "^1.41.1",
     "openai": "^6.32.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

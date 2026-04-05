@@ -1,4 +1,5 @@
 import { InlineKeyboard } from "grammy";
+import { config } from "../config.js";
 
 export const callbackData = {
   help: "menu:help",
@@ -20,8 +21,9 @@ export const callbackData = {
   infoCapabilities: "info:capabilities",
   infoTerms: "info:terms",
   infoSupport: "info:support",
-  // Balance
+  // Balance & payment
   tariffs: "menu:tariffs",
+  topup: "pay:topup",
   // Formats
   format1x1: "fmt:1x1",
   format3x4: "fmt:3x4",
@@ -29,11 +31,31 @@ export const callbackData = {
   format9x16: "fmt:9x16",
 } as const;
 
-export function mainMenuKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
+export const FORMAT_MAP: Record<string, "1x1" | "3x4" | "4x3" | "9x16"> = {
+  [callbackData.format1x1]: "1x1",
+  [callbackData.format3x4]: "3x4",
+  [callbackData.format4x3]: "4x3",
+  [callbackData.format9x16]: "9x16",
+};
+
+export const TOPUP_AMOUNTS: Record<string, number> = {
+  "pay:50": 50,
+  "pay:100": 100,
+  "pay:250": 250,
+  "pay:500": 500,
+  "pay:1000": 1000,
+  "pay:5000": 5000,
+};
+
+export function mainMenuKeyboard(userId?: number): InlineKeyboard {
+  const kb = new InlineKeyboard()
     .text("❓ Как генерировать", callbackData.help).row()
     .text("💰 Баланс", callbackData.balance).row()
     .text("ℹ️ Информация", callbackData.info);
+  if (userId && config.adminIds.includes(userId)) {
+    kb.row().text("⚙️ Админ-панель", "admin:open");
+  }
+  return kb;
 }
 
 export function helpMenuKeyboard(): InlineKeyboard {
@@ -66,16 +88,27 @@ export function backToInfoKeyboard(): InlineKeyboard {
 
 export function balanceKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
+    .text("➕ Пополнить баланс", callbackData.topup).row()
     .text("📋 Тарифы", callbackData.tariffs).row()
+    .text("🔙 Назад", callbackData.backToStart);
+}
+
+export function topupAmountKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("50 ₽", "pay:50").text("100 ₽", "pay:100").row()
+    .text("250 ₽", "pay:250").text("500 ₽", "pay:500").row()
+    .text("1000 ₽", "pay:1000").text("5000 ₽", "pay:5000").row()
+    .text("🔙 Назад", callbackData.backToBalance);
+}
+
+export function insufficientBalanceKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("➕ Пополнить баланс", callbackData.topup).row()
     .text("🔙 Назад", callbackData.backToStart);
 }
 
 export function backToBalanceKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("🔙 Назад", callbackData.backToBalance);
-}
-
-export function backKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text("🔙 Назад", callbackData.backToStart);
 }
 
 export function formatKeyboard(): InlineKeyboard {

@@ -29,8 +29,6 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 |---|---|---|
 | `BOT_TOKEN` | yes | Telegram Bot API token |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key |
-| `ALLOWED_USER_IDS` | no | Comma-separated Telegram user IDs for whitelist |
-| `ALLOWED_USERNAMES` | no | Comma-separated Telegram usernames for whitelist |
 | `ADMIN_IDS` | no | Comma-separated Telegram user IDs for admin panel access |
 | `YOOKASSA_SHOP_ID` | no | YooKassa shop ID (for payments) |
 | `YOOKASSA_SECRET_KEY` | no | YooKassa secret key |
@@ -56,7 +54,6 @@ src/
 │   ├── start.ts            # /start command, welcome message
 │   ├── menu.ts             # Main menu, help, balance screens (real balance)
 │   ├── generate.ts         # Photo+text → balance check → AI generation → DB record
-│   ├── provider.ts         # /provider command — switch AI provider
 │   ├── admin.ts            # /admin command — admin panel (users, stats, settings)
 │   └── payment.ts          # Payment flow — amount selection, YooKassa link
 ├── keyboards/
@@ -66,12 +63,10 @@ src/
 │   ├── block.ts            # Block check — blocked users get rejected
 │   ├── consent.ts          # Optional PD consent gate (configurable via settings)
 │   ├── rateLimit.ts        # Rate limiting (5 generations/min per user)
-│   └── whitelist.ts        # Access control by Telegram user ID or username
 ├── payments/
 │   └── yookassa.ts         # YooKassa REST API client
 ├── providers/
 │   ├── types.ts            # CardProvider interface, format types
-│   ├── registry.ts         # Provider registry (register, switch, get)
 │   └── openrouter.ts       # OpenRouter provider (Gemini via OpenAI-compatible API)
 └── texts/
     └── index.ts            # All user-facing text constants
@@ -98,8 +93,8 @@ src/
 ## Middleware Order (in bot.ts)
 
 1. `auth` — register/update user in DB, set `ctx.dbUser`
-2. `consent` — optional PD consent check (configurable)
-3. `block` — reject blocked users
+2. `block` — reject blocked users
+3. `consent` — optional PD consent check (configurable)
 
 ## Admin Panel
 
@@ -118,7 +113,7 @@ Features: user list with pagination, user detail (balance +/-, block), statistic
 - **OpenRouter** — single active provider, model `google/gemini-3.1-flash-image-preview`
 - Uses OpenAI SDK with `baseURL: "https://openrouter.ai/api/v1"`
 - Native aspect ratio support via `image_config.aspect_ratio` — no crop/resize needed
-- **Provider architecture:** `CardProvider` interface → provider registry → `/provider` command to switch at runtime
+- **Provider:** Single `OpenRouterProvider` instance, instantiated directly in generate handler
 
 ## Backlog (deferred features)
 
