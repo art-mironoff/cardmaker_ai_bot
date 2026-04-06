@@ -119,7 +119,7 @@ async function shutdown(): Promise<void> {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-// Start webhook server for YooKassa
+// Start webhook server for YooMoney
 startWebhookServer(bot);
 
 // Start bot

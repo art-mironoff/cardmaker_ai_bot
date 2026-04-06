@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Telegram bot for generating product cards (infographics) for marketplaces. Users send an image + text in a single message, the bot generates a styled product card using an AI image generation service.
 
-**Status:** Stage 2 — database, real balance, admin panel, YooKassa payments, webhook server.
+**Status:** Stage 2 — database, real balance, admin panel, YooMoney payments, webhook server.
 
 **Language:** Russian (all UI text, prompts, and user-facing content are in Russian). All console output and code comments must be in English.
 
@@ -30,9 +30,9 @@ Telegram bot for generating product cards (infographics) for marketplaces. Users
 | `BOT_TOKEN` | yes | Telegram Bot API token |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key |
 | `ADMIN_IDS` | no | Comma-separated Telegram user IDs for admin panel access |
-| `YOOKASSA_SHOP_ID` | no | YooKassa shop ID (for payments) |
-| `YOOKASSA_SECRET_KEY` | no | YooKassa secret key |
-| `YOOKASSA_RETURN_URL` | no | URL to return after payment (e.g. `https://t.me/botname`) |
+| `YOOMONEY_WALLET_ID` | no | YooMoney wallet number (for payments) |
+| `YOOMONEY_NOTIFICATION_SECRET` | no | YooMoney notification secret |
+| `PAYMENT_RETURN_URL` | no | URL to return after payment (e.g. `https://t.me/botname`) |
 | `WEBHOOK_PORT` | no | Port for webhook server (default: 3000) |
 | `WEBHOOK_BASE_URL` | no | Public URL for webhooks (e.g. `https://your-server.com`) |
 
@@ -43,7 +43,7 @@ src/
 ├── bot.ts                  # Entry point — bot setup, middleware, handlers, webhook
 ├── config.ts               # Env parsing and validation
 ├── context.ts              # BotContext type (extends grammY Context with dbUser)
-├── webhook.ts              # HTTP server for YooKassa payment webhooks
+├── webhook.ts              # HTTP server for YooMoney payment webhooks
 ├── db/
 │   ├── index.ts            # Database initialization, schema, WAL mode
 │   ├── users.ts            # User CRUD, balance operations, listing
@@ -55,7 +55,7 @@ src/
 │   ├── menu.ts             # Main menu, help, balance screens (real balance)
 │   ├── generate.ts         # Photo+text → balance check → AI generation → DB record
 │   ├── admin.ts            # /admin command — admin panel (users, stats, settings)
-│   └── payment.ts          # Payment flow — amount selection, YooKassa link
+│   └── payment.ts          # Payment flow — amount selection, YooMoney link
 ├── keyboards/
 │   └── index.ts            # Inline keyboard builders (menu, payment, admin)
 ├── middleware/
@@ -64,7 +64,7 @@ src/
 │   ├── consent.ts          # Optional PD consent gate (configurable via settings)
 │   ├── rateLimit.ts        # Rate limiting (5 generations/min per user)
 ├── payments/
-│   └── yookassa.ts         # YooKassa REST API client
+│   └── yoomoney.ts         # YooMoney quickpay URL builder + notification verification
 ├── providers/
 │   ├── types.ts            # CardProvider interface, format types
 │   └── openrouter.ts       # OpenRouter provider (Gemini via OpenAI-compatible API)
@@ -86,7 +86,7 @@ src/
 - **Balance:** Real balance in kopecks, checked before generation, refunded on AI failure
 - **Rate limiting:** 5 generations per minute per user (in-memory)
 - **Admin panel:** `/admin` command for users in `ADMIN_IDS` — manage users, balance, stats, settings, broadcast
-- **Payments:** YooKassa integration via webhook server on separate HTTP port
+- **Payments:** YooMoney quickpay integration via webhook server on separate HTTP port
 - **Pending requests:** In-memory Map with 30-min TTL and 10-min cleanup
 - **Graceful shutdown:** Closes DB and stops bot on SIGINT/SIGTERM
 

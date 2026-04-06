@@ -15,11 +15,10 @@ export const config = {
     .split(",")
     .map((id) => Number(id.trim()))
     .filter((id) => !isNaN(id) && id > 0),
-  yookassa: {
-    shopId: process.env.YOOKASSA_SHOP_ID ?? "",
-    secretKey: process.env.YOOKASSA_SECRET_KEY ?? "",
-    returnUrl: process.env.YOOKASSA_RETURN_URL ?? "",
-    notificationSecret: process.env.YOOKASSA_NOTIFICATION_SECRET ?? "",
+  yoomoney: {
+    walletId: process.env.YOOMONEY_WALLET_ID ?? "",
+    notificationSecret: process.env.YOOMONEY_NOTIFICATION_SECRET ?? "",
+    returnUrl: process.env.PAYMENT_RETURN_URL ?? "",
   },
   webhookPort: Number(process.env.WEBHOOK_PORT ?? "3000"),
   webhookBaseUrl: process.env.WEBHOOK_BASE_URL ?? "",
