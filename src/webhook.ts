@@ -109,10 +109,11 @@ export function startWebhookServer(bot: Bot<BotContext>): void {
           return;
         }
 
-        // Verify amount matches (notification amount in RUB, DB amount in kopecks)
+        // Verify amount (YooMoney deducts ~3% commission, so received < expected is normal)
+        // Reject only if received amount is less than 90% of expected (protects against label spoofing)
         const expectedRub = payment.amount / 100;
         const receivedRub = parseFloat(notification.amount);
-        if (isNaN(receivedRub) || receivedRub < expectedRub) {
+        if (isNaN(receivedRub) || receivedRub < expectedRub * 0.9) {
           console.warn("Amount mismatch: expected", expectedRub, "RUB, received", receivedRub, "RUB, payment:", paymentId);
           res.writeHead(200);
           res.end("OK");
