@@ -86,6 +86,13 @@ export function backToInfoKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("🔙 Назад", callbackData.backToInfo);
 }
 
+export function termsKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .url("🔒 Политика конфиденциальности", "https://telegra.ph/Politika-konfidencialnosti-04-07-44").row()
+    .url("🔒 Пользовательское соглашение", "https://telegra.ph/Polzovatelskoe-soglashenie-04-07-29").row()
+    .text("🔙 Назад", callbackData.backToInfo);
+}
+
 export function balanceKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("➕ Пополнить баланс", callbackData.topup).row()

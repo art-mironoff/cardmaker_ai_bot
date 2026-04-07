@@ -7,6 +7,7 @@ import {
   backToHelpKeyboard,
   infoMenuKeyboard,
   backToInfoKeyboard,
+  termsKeyboard,
   balanceKeyboard,
   backToBalanceKeyboard,
 } from "../keyboards/index.js";
@@ -96,7 +97,7 @@ export async function handleInfoCapabilities(ctx: BotContext): Promise<void> {
 }
 
 export async function handleInfoTerms(ctx: BotContext): Promise<void> {
-  await safeEditOrReply(ctx, texts.infoTerms, backToInfoKeyboard());
+  await safeEditOrReply(ctx, texts.infoTerms, termsKeyboard());
 }
 
 export async function handleInfoSupport(ctx: BotContext): Promise<void> {
