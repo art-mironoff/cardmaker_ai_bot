@@ -150,16 +150,20 @@ bot.start({
       { command: "admin", description: "Админ-панель" },
     ];
     for (const adminId of config.adminIds) {
-      await bot.api.deleteMyCommands({
-        scope: { type: "chat", chat_id: adminId },
-      });
-      await bot.api.setMyCommands(adminCommands, {
-        scope: { type: "chat", chat_id: adminId },
-      });
-      await bot.api.setChatMenuButton({
-        chat_id: adminId,
-        menu_button: { type: "commands" },
-      });
+      try {
+        await bot.api.deleteMyCommands({
+          scope: { type: "chat", chat_id: adminId },
+        });
+        await bot.api.setMyCommands(adminCommands, {
+          scope: { type: "chat", chat_id: adminId },
+        });
+        await bot.api.setChatMenuButton({
+          chat_id: adminId,
+          menu_button: { type: "commands" },
+        });
+      } catch (err) {
+        console.warn(`Failed to set admin commands for ${adminId} (chat not found?), skipping`);
+      }
     }
   },
 });
