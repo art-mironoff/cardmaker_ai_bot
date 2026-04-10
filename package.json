@@ -6,7 +6,9 @@
   "main": "src/bot.ts",
   "scripts": {
     "dev": "npx tsx watch src/bot.ts",
-    "start": "npx tsx src/bot.ts"
+    "start": "npx tsx src/bot.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "Arthur Mironov",
@@ -21,6 +23,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
   }
 }
