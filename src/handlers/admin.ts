@@ -336,6 +336,8 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
 
     case "broadcast": {
       await handleBroadcast(ctx, text);
+      // Keep broadcast state active for multiple messages
+      adminInputState.set(ctx.from!.id, { type: "broadcast", returnTo: "admin:menu", createdAt: Date.now() });
       return true;
     }
   }
@@ -352,7 +354,6 @@ export async function handleAdminMediaInput(ctx: BotContext): Promise<boolean> {
   if (!state) return false;
 
   if (state.type === "broadcast") {
-    adminInputState.delete(ctx.from!.id);
     const fromChatId = ctx.chat!.id;
     const messageId = ctx.message!.message_id;
     await broadcastToAll(ctx, (telegramId) =>
@@ -690,8 +691,8 @@ async function broadcastToAll(
   }
 
   console.log("Broadcast by admin", ctx.from!.id, "sent:", sent, "failed:", failed);
-  await ctx.reply(`📢 Рассылка завершена.\nОтправлено: ${sent}\nНе доставлено: ${failed}`, {
-    reply_markup: backToAdminKeyboard(),
+  await ctx.reply(`📢 Рассылка завершена.\nОтправлено: ${sent}\nНе доставлено: ${failed}\n\nОтправьте ещё сообщение или нажмите Назад.`, {
+    reply_markup: cancelInputKeyboard(),
   });
 }
 
