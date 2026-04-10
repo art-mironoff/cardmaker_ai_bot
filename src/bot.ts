@@ -28,7 +28,7 @@ import {
   handleBackToBalance,
 } from "./handlers/menu.js";
 import { handlePhoto, handleDocument, handleTextWithoutPhoto, handleFormatSelection, startPendingCleanup } from "./handlers/generate.js";
-import { handleAdminCommand, handleAdminCallback, handleAdminTextInput } from "./handlers/admin.js";
+import { handleAdminCommand, handleAdminCallback, handleAdminTextInput, handleAdminMediaInput } from "./handlers/admin.js";
 import { handleTopupCallback, handlePaymentAmountCallback } from "./handlers/payment.js";
 import { startWebhookServer } from "./webhook.js";
 
@@ -87,8 +87,14 @@ bot.callbackQuery(/^admin:/, handleAdminCallback);
 bot.callbackQuery(/^fmt:/, handleFormatSelection);
 
 // Message handlers
-bot.on("message:photo", handlePhoto);
-bot.on("message:document", handleDocument);
+bot.on("message:photo", async (ctx) => {
+  const handled = await handleAdminMediaInput(ctx);
+  if (!handled) await handlePhoto(ctx);
+});
+bot.on("message:document", async (ctx) => {
+  const handled = await handleAdminMediaInput(ctx);
+  if (!handled) await handleDocument(ctx);
+});
 bot.on("message:text", async (ctx) => {
   // Check if admin is entering a value
   const handled = await handleAdminTextInput(ctx);

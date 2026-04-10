@@ -232,7 +232,7 @@ export async function handleAdminCallback(ctx: BotContext): Promise<void> {
 
   if (data === "admin:broadcast") {
     adminInputState.set(ctx.from!.id, { type: "broadcast", returnTo: "admin:menu", createdAt: Date.now() });
-    await ctx.editMessageText("Введите текст рассылки (будет отправлен всем пользователям):", { reply_markup: cancelInputKeyboard() });
+    await ctx.editMessageText("Отправьте сообщение для рассылки — текст, фото или документ (будет отправлено всем пользователям):", { reply_markup: cancelInputKeyboard() });
     return;
   }
 }
@@ -341,6 +341,31 @@ export async function handleAdminTextInput(ctx: BotContext): Promise<boolean> {
   }
 
   return false;
+}
+
+// --- Admin media input handler (photos, documents, etc.) ---
+
+export async function handleAdminMediaInput(ctx: BotContext): Promise<boolean> {
+  if (!isAdmin(ctx)) return false;
+
+  const state = adminInputState.get(ctx.from!.id);
+  if (!state) return false;
+
+  if (state.type === "broadcast") {
+    adminInputState.delete(ctx.from!.id);
+    const fromChatId = ctx.chat!.id;
+    const messageId = ctx.message!.message_id;
+    await broadcastToAll(ctx, (telegramId) =>
+      ctx.api.copyMessage(telegramId, fromChatId, messageId),
+    );
+    return true;
+  }
+
+  // Non-broadcast input states expect text
+  await ctx.reply("Ожидается текстовое сообщение. Отправьте текст или нажмите Назад для отмены.", {
+    reply_markup: cancelInputKeyboard(),
+  });
+  return true;
 }
 
 // --- Screens ---
@@ -621,14 +646,10 @@ async function showSettings(ctx: BotContext): Promise<void> {
 
 const MAX_BROADCAST_LENGTH = 4096; // Telegram message limit
 
-async function handleBroadcast(ctx: BotContext, message: string): Promise<void> {
-  if (message.length > MAX_BROADCAST_LENGTH) {
-    await ctx.reply(`Сообщение слишком длинное (${message.length} символов, макс. ${MAX_BROADCAST_LENGTH}).`, {
-      reply_markup: backToAdminKeyboard(),
-    });
-    return;
-  }
-
+async function broadcastToAll(
+  ctx: BotContext,
+  sendFn: (telegramId: number) => Promise<unknown>,
+): Promise<void> {
   let sent = 0;
   let failed = 0;
   let offset = 0;
@@ -645,14 +666,14 @@ async function handleBroadcast(ctx: BotContext, message: string): Promise<void> 
     for (const user of users) {
       if (user.is_blocked) continue;
       try {
-        await ctx.api.sendMessage(user.telegram_id, message);
+        await sendFn(user.telegram_id);
         sent++;
       } catch (err: unknown) {
         // Back off on Telegram rate limit (HTTP 429)
         if (err instanceof Error && err.message.includes("429")) {
           await sleep(5000);
           try {
-            await ctx.api.sendMessage(user.telegram_id, message);
+            await sendFn(user.telegram_id);
             sent++;
           } catch {
             failed++;
@@ -672,6 +693,17 @@ async function handleBroadcast(ctx: BotContext, message: string): Promise<void> 
   await ctx.reply(`📢 Рассылка завершена.\nОтправлено: ${sent}\nНе доставлено: ${failed}`, {
     reply_markup: backToAdminKeyboard(),
   });
+}
+
+async function handleBroadcast(ctx: BotContext, message: string): Promise<void> {
+  if (message.length > MAX_BROADCAST_LENGTH) {
+    await ctx.reply(`Сообщение слишком длинное (${message.length} символов, макс. ${MAX_BROADCAST_LENGTH}).`, {
+      reply_markup: backToAdminKeyboard(),
+    });
+    return;
+  }
+
+  await broadcastToAll(ctx, (telegramId) => ctx.api.sendMessage(telegramId, message));
 }
 
 function addPaginationRow(keyboard: InlineKeyboard, page: number, totalPages: number, callbackPrefix: string): void {
